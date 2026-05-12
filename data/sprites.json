@@ -1,0 +1,31 @@
+{
+    "_meta": {
+        "description": "Манифест спрайт-шитов прототипа 'Дорога на восток'. Один источник правды для PWA и для будущего конвертера в C-массивы для ESP32 (LilyGO T-Display, ST7789 240x135, RGB565). На устройстве рендерится в нативном размере (frameWidth x frameHeight); в браузере масштабируется через CSS image-rendering: pixelated. На каждый кадр в спрайт-шите выделена горизонтальная плитка frameWidth пикселей.",
+        "color_format_pwa": "PNG RGBA",
+        "color_format_esp32": "RGB565 (или indexed + RLE) — генерится скриптом перед прошивкой"
+    },
+    "sprites": {
+        "walk": {
+            "src": "assets/sprites/walk.png",
+            "frameWidth": 24,
+            "frameHeight": 32,
+            "frames": 2,
+            "fps": 4
+        },
+        "bike": {
+            "src": "assets/sprites/bike.png",
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frames": 2,
+            "fps": 6
+        },
+        "uaz": {
+            "src": "assets/sprites/uaz.png",
+            "frameWidth": 48,
+            "frameHeight": 32,
+            "frames": 2,
+            "fps": 8
+        }
+    },
+    "transport_default": ["walk", "bike", "uaz"]
+}
