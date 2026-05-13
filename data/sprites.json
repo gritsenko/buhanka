@@ -24,9 +24,9 @@
         },
         "uaz": {
             "src": "assets/sprites/uaz.png",
-            "frameWidth": 48,
-            "frameHeight": 26,
-            "frames": 2,
+            "frameWidth": 84,
+            "frameHeight": 46,
+            "frames": 1,
             "fps": 8,
             "kind": "actor"
         },
