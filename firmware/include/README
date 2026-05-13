@@ -1,0 +1,11 @@
+This directory is intended for project header files shared across every
+PlatformIO environment in this firmware project.
+
+PlatformIO automatically adds this directory to the global include path, so
+any file placed here can be included from any source file as
+
+    #include "road_east_version.h"
+
+Keep cross-device, device-agnostic declarations here. Headers that belong to
+a single device should live next to that device's sources under
+src/<device_id>/.

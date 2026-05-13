@@ -38,3 +38,12 @@ tmp/
 temp/
 *.bak
 *.tmp
+
+# ===== PlatformIO / прошивка =====
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+# Локальные секреты прошивки (Wi-Fi, токены и т.п.) — копируется из *.example.h
+firmware/include/local_secrets.h

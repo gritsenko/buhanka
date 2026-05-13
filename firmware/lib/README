@@ -1,0 +1,14 @@
+Private libraries for this PlatformIO project.
+
+Each library should live in its own subdirectory, for example:
+
+    lib/RoadEastCore/
+        src/road_east_core.cpp
+        include/road_east_core.h
+        library.json
+
+PlatformIO discovers libraries here automatically and links them into any
+environment that declares `lib_deps = RoadEastCore` (or uses `lib_ldf_mode`).
+This is the right place for reusable modules that are device-agnostic
+(content schemas, asset decoders, game-state logic, etc.) once they grow
+large enough to be promoted out of src/common/.
