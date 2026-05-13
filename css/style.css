@@ -9,6 +9,20 @@
     --food-color: #ffa502;
     --fuel-color: #9c88ff;
     --accent: #3498db;
+    --viewport-padding: 12px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 body {
@@ -17,7 +31,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100dvh;
+    padding: var(--viewport-padding);
+    padding-top: max(var(--viewport-padding), env(safe-area-inset-top));
+    padding-right: max(var(--viewport-padding), env(safe-area-inset-right));
+    padding-bottom: max(var(--viewport-padding), env(safe-area-inset-bottom));
+    padding-left: max(var(--viewport-padding), env(safe-area-inset-left));
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color: var(--text-main);
     user-select: none;
@@ -33,6 +54,9 @@ body {
     align-items: center;
     border: 2px solid #111;
     position: relative;
+    width: min(100%, 860px);
+    max-height: 100%;
+    min-height: 0;
 }
 
 /*
@@ -42,16 +66,18 @@ body {
  */
 .screen {
     background-color: var(--screen-bg);
-    width: 720px;
-    height: 405px;
+    width: min(720px, 100%);
+    height: auto;
+    aspect-ratio: 16 / 9;
     border-radius: 4px;
-    box-sizing: border-box;
     position: relative;
     display: flex;
     flex-direction: column;
     border: 4px solid #000;
     overflow: hidden;
     box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+    min-width: 0;
+    min-height: 0;
 }
 
 /* --- Основной интерфейс --- */
@@ -71,6 +97,7 @@ body {
     align-items: center;
     gap: 8px;
     flex: 1;
+    min-width: 0;
 }
 
 .bar-container {
@@ -99,6 +126,7 @@ body {
     font-size: 1.1rem;
     transition: background 0.2s;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
 }
 
 .map-touch-btn:active {
@@ -110,6 +138,7 @@ body {
     display: flex;
     flex-grow: 1;
     height: calc(100% - 35px);
+    min-height: 0;
 }
 
 .party-panel {
@@ -123,6 +152,8 @@ body {
     overflow-y: auto;
     cursor: pointer;
     transition: background 0.2s;
+    min-height: 0;
+    flex-shrink: 0;
 }
 
 .party-panel:active {
@@ -173,6 +204,7 @@ body {
     flex-direction: column;
     padding: 15px;
     position: relative;
+    min-height: 0;
 }
 
 .text-area {
@@ -181,6 +213,8 @@ body {
     line-height: 1.5;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
     white-space: pre-wrap;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .choices-area {
@@ -188,6 +222,7 @@ body {
     flex-direction: column;
     gap: 10px;
     margin-top: 15px;
+    flex-shrink: 0;
 }
 
 .choice-row {
@@ -322,6 +357,7 @@ body {
     flex-direction: column;
     gap: 80px;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .btn {
@@ -354,24 +390,198 @@ body {
     50% { opacity: 0.3; }
 }
 
-@media (max-width: 850px) {
+@media (orientation: portrait) {
+    body {
+        align-items: stretch;
+    }
+
     .device {
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        gap: 12px;
         flex-direction: column;
-        padding: 15px;
+        align-items: stretch;
+        border-radius: 18px;
     }
-    .hardware-buttons {
-        flex-direction: row;
-        gap: 40px;
-    }
+
     .screen {
         width: 100%;
-        max-width: 720px;
         height: auto;
-        aspect-ratio: 16 / 9;
+        aspect-ratio: auto;
+        flex: 1 1 auto;
+        border-width: 3px;
     }
+
+    .top-bar {
+        padding: 10px;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 0.85rem;
+    }
+
+    .resource {
+        flex: 1 1 calc(50% - 8px);
+    }
+
+    .map-touch-btn {
+        width: 44px;
+        min-height: 34px;
+        margin-left: auto;
+        padding: 0;
+    }
+
+    .main-area {
+        flex-direction: column;
+        height: auto;
+        flex: 1 1 auto;
+    }
+
+    .party-panel {
+        width: 100%;
+        max-height: 112px;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 2px solid #222;
+        flex-direction: row;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .member {
+        min-width: 104px;
+        flex: 0 0 104px;
+        padding: 8px 7px;
+    }
+
+    .member-name {
+        font-size: 0.78rem;
+    }
+
+    .stat-row {
+        font-size: 0.7rem;
+    }
+
+    .content-panel {
+        padding: 12px;
+    }
+
+    .text-area {
+        font-size: clamp(1rem, 4.2vw, 1.1rem);
+        line-height: 1.45;
+    }
+
+    .choice-row {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+
+    .overlay {
+        padding: 16px;
+    }
+
+    .status-header {
+        font-size: 1rem;
+    }
+
+    .status-text,
+    .hint-text,
+    .map-text {
+        font-size: 0.95rem;
+    }
+
+    .map-text {
+        margin-top: 20px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+    }
+
+    .hardware-buttons {
+        width: 100%;
+        flex-direction: row;
+        gap: 12px;
+    }
+
     .btn {
-        padding: 15px;
+        flex: 1 1 0;
         width: auto;
-        min-width: 80px;
+        min-width: 0;
+        padding: 16px 12px;
+        font-size: 0.92rem;
+    }
+
+    .btn small {
+        font-size: 0.78rem;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+    body {
+        align-items: stretch;
+    }
+
+    .device {
+        width: 100%;
+        height: 100%;
+        padding: 10px 12px;
+        gap: 12px;
+        border-radius: 18px;
+        align-items: stretch;
+    }
+
+    .screen {
+        width: min(720px, calc((100dvh - 44px) * 16 / 9), calc(100vw - 132px));
+        border-width: 3px;
+    }
+
+    .top-bar {
+        padding: 6px 8px;
+        gap: 10px;
+        font-size: 0.82rem;
+    }
+
+    .party-panel {
+        width: 132px;
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .content-panel {
+        padding: 12px;
+    }
+
+    .text-area {
+        font-size: 0.98rem;
+        line-height: 1.4;
+    }
+
+    .choice-row {
+        padding: 9px 12px;
+        font-size: 0.92rem;
+    }
+
+    .overlay {
+        padding: 16px;
+    }
+
+    .map-text {
+        margin-top: 20px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .hardware-buttons {
+        gap: 12px;
+    }
+
+    .btn {
+        width: 72px;
+        padding: 12px 8px;
+        font-size: 0.72rem;
+    }
+
+    .btn small {
+        font-size: 0.68rem;
     }
 }
