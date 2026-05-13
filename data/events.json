@@ -4,60 +4,65 @@
         "text": "Вы проснулись в пустом подмосковном поселке. Никого нет, связи тоже. Нужно выбираться на восток. Идти пешком с тяжелым рюкзаком очень утомительно.",
         "hint": "Движение по асфальту тратит меньше сил, чем по пересеченной местности. В гаражах можно найти полезное.",
         "choices": [
-            { "action": "Идти по шоссе", "food_mod": -15, "hp_mod": -10, "mood_mod": -20, "next_id": "highway" },
-            { "action": "Осмотреть гаражи", "food_mod": -5, "hp_mod": 0, "mood_mod": 0, "next_id": "garage" }
+            { "action": "Идти по шоссе",   "food_mod": -15, "hp_mod": -10, "mood_mod": -20, "next_id": "highway", "scene": "walk_forest" },
+            { "action": "Осмотреть гаражи", "food_mod":  -5, "hp_mod":   0, "mood_mod":   0, "next_id": "garage",  "scene": "garage_inspect" }
         ]
     },
     {
         "id": "garage",
+        "scene": "garage_inspect",
         "text": "В открытом гараже соседа вы находите старый, но рабочий велосипед 'Кама'. Рядом валяется банка сгущенки.",
         "hint": "Колесный транспорт экономит до 70% энергии. Вы перемещаетесь быстрее.",
         "choices": [
-            { "action": "Поехать на велосипеде", "transport_mod": 1, "food_mod": 10, "hp_mod": 5, "mood_mod": 30, "next_id": "meet_sashka" }
+            { "action": "Поехать на велосипеде", "transport_mod": 1, "food_mod": 10, "hp_mod": 5, "mood_mod": 30, "next_id": "meet_sashka", "scene": "walk_forest" }
         ]
     },
     {
         "id": "highway",
+        "scene": "walk_forest",
         "text": "Вы идете по пустой трассе. Жарко, ноги гудят. На обочине замечаете брошенный кемпер, но дверь заперта.",
         "hint": "Без инструмента лучше не тратить силы на взлом крепких замков — можно травмироваться.",
         "choices": [
-            { "action": "Разбить стекло", "food_mod": 15, "hp_mod": -15, "mood_mod": -10, "next_id": "meet_sashka" },
-            { "action": "Идти дальше", "food_mod": -10, "hp_mod": -5, "mood_mod": -15, "next_id": "meet_sashka" }
+            { "action": "Разбить стекло", "food_mod":  15, "hp_mod": -15, "mood_mod": -10, "next_id": "meet_sashka", "scene": "walk_forest" },
+            { "action": "Идти дальше",    "food_mod": -10, "hp_mod":  -5, "mood_mod": -15, "next_id": "meet_sashka", "scene": "walk_forest" }
         ]
     },
     {
         "id": "meet_sashka",
         "text": "На мосту через реку Оку вы встречаете своего друга Сашку! Он сидит с удочкой. 'О, братуха! Я тут карасей натягал, но спички отсырели'.",
         "hint": "Трение, линза (очки/лупа) или искра от кремня — базовые способы добыть огонь без спичек.",
-        "sprite": "walk",
+        "scene": "campfire",
         "unlock_friend": "sashka",
         "choices": [
-            { "action": "Развести огонь трением", "food_mod": 20, "hp_mod": -5, "mood_mod": 20, "next_id": "forest_camp" },
-            { "action": "Съесть рыбу сырой", "food_mod": 10, "hp_mod": -20, "mood_mod": -30, "next_id": "forest_camp" }
+            { "action": "Развести огонь трением", "food_mod": 20, "hp_mod":  -5, "mood_mod":  20, "next_id": "forest_camp", "scene": "campfire" },
+            { "action": "Съесть рыбу сырой",      "food_mod": 10, "hp_mod": -20, "mood_mod": -30, "next_id": "forest_camp", "scene": "campfire" }
         ]
     },
     {
         "id": "forest_camp",
+        "scene": "campfire",
         "text": "Поев, вы понимаете, что запасы воды на исходе. Рядом только мутная лужа. Надо что-то делать.",
         "hint": "Многослойный фильтр (уголь, песок, ткань) очистит от грязи, но для уничтожения бактерий воду ОБЯЗАТЕЛЬНО кипятить.",
         "choices": [
-            { "action": "Угольный фильтр", "food_mod": -5, "hp_mod": 10, "mood_mod": 15, "next_id": "find_uaz" },
-            { "action": "Пить так", "food_mod": 0, "hp_mod": -30, "mood_mod": -20, "next_id": "find_uaz" }
+            { "action": "Угольный фильтр", "food_mod": -5, "hp_mod":  10, "mood_mod":  15, "next_id": "find_uaz", "scene": "walk_forest" },
+            { "action": "Пить так",        "food_mod":  0, "hp_mod": -30, "mood_mod": -20, "next_id": "find_uaz", "scene": "walk_forest" }
         ]
     },
     {
         "id": "find_uaz",
+        "scene": "garage_inspect",
         "text": "У старой лесопилки вы находите Илью и Макса! Они ковыряются в моторе УАЗ 'Буханка'. 'Почти готово, бензин есть, но аккум сел!'",
         "hint": "Машину на механике можно завести 'с толкача'.",
         "unlock_friend": "ilya",
         "unlock_friend_2": "maks",
         "fuel_mod": 50,
         "choices": [
-            { "action": "Толкать всем вместе!", "transport_mod": 2, "food_mod": -15, "hp_mod": -5, "mood_mod": 10, "next_id": "victory" }
+            { "action": "Толкать всем вместе!", "transport_mod": 2, "food_mod": -15, "hp_mod": -5, "mood_mod": 10, "next_id": "victory", "scene": "walk_forest" }
         ]
     },
     {
         "id": "victory",
+        "scene": "walk_forest",
         "text": "Двигатель зарычал! Вы запрыгиваете внутрь. Начинается великое дорожное путешествие к берегам Находки!\n\n*** КОНЕЦ ДЕМО ***",
         "hint": "УАЗ Буханка - отличная проходимость, но большой расход топлива.",
         "choices": [

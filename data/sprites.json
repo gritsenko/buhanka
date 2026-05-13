@@ -1,30 +1,82 @@
 {
     "_meta": {
-        "description": "Манифест спрайт-шитов прототипа 'Дорога на восток'. Один источник правды для PWA и для будущего конвертера в C-массивы для ESP32 (LilyGO T-Display, ST7789 240x135, RGB565). На устройстве рендерится в нативном размере (frameWidth x frameHeight); в браузере масштабируется через CSS image-rendering: pixelated. На каждый кадр в спрайт-шите выделена горизонтальная плитка frameWidth пикселей.",
+        "description": "Манифест спрайт-шитов прототипа 'Дорога на восток'. Один источник правды для PWA и для будущего конвертера в C-массивы для ESP32 (LilyGO T-Display, ST7789 240x135, RGB565). На устройстве рендерится в нативном размере (frameWidth x frameHeight); в браузере масштабируется под scene-canvas с image-rendering: pixelated. На каждый кадр в спрайт-шите выделена горизонтальная плитка frameWidth пикселей.",
         "color_format_pwa": "PNG RGBA",
-        "color_format_esp32": "RGB565 (или indexed + RLE) — генерится скриптом перед прошивкой"
+        "color_format_esp32": "RGB565 (или indexed + RLE) — генерится скриптом перед прошивкой",
+        "kinds": "kind=actor (герой/транспорт), kind=prop (статичный объект сцены), kind=fx (анимация без перемещения)"
     },
     "sprites": {
         "walk": {
             "src": "assets/sprites/walk.png",
             "frameWidth": 24,
-            "frameHeight": 32,
+            "frameHeight": 25,
             "frames": 2,
-            "fps": 4
+            "fps": 4,
+            "kind": "actor"
         },
         "bike": {
             "src": "assets/sprites/bike.png",
             "frameWidth": 32,
-            "frameHeight": 32,
+            "frameHeight": 28,
             "frames": 2,
-            "fps": 6
+            "fps": 6,
+            "kind": "actor"
         },
         "uaz": {
             "src": "assets/sprites/uaz.png",
             "frameWidth": 48,
-            "frameHeight": 32,
+            "frameHeight": 26,
             "frames": 2,
-            "fps": 8
+            "fps": 8,
+            "kind": "actor"
+        },
+        "mountain": {
+            "src": "assets/sprites/mountain.png",
+            "frameWidth": 80,
+            "frameHeight": 32,
+            "frames": 1,
+            "fps": 0,
+            "kind": "prop"
+        },
+        "tree": {
+            "src": "assets/sprites/tree.png",
+            "frameWidth": 16,
+            "frameHeight": 24,
+            "frames": 1,
+            "fps": 0,
+            "kind": "prop"
+        },
+        "bush": {
+            "src": "assets/sprites/bush.png",
+            "frameWidth": 12,
+            "frameHeight": 10,
+            "frames": 1,
+            "fps": 0,
+            "kind": "prop"
+        },
+        "garage": {
+            "src": "assets/sprites/garage.png",
+            "frameWidth": 56,
+            "frameHeight": 40,
+            "frames": 1,
+            "fps": 0,
+            "kind": "prop"
+        },
+        "fire": {
+            "src": "assets/sprites/fire.png",
+            "frameWidth": 16,
+            "frameHeight": 16,
+            "frames": 2,
+            "fps": 6,
+            "kind": "fx"
+        },
+        "sit": {
+            "src": "assets/sprites/sit.png",
+            "frameWidth": 16,
+            "frameHeight": 16,
+            "frames": 1,
+            "fps": 0,
+            "kind": "prop"
         }
     },
     "transport_default": ["walk", "bike", "uaz"]

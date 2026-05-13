@@ -299,16 +299,21 @@ body {
 }
 
 /*
- * Контейнер спрайта. Реальные размеры (width/height/background-*) ставятся
- * из JS по data/sprites.json, поэтому здесь только общий ресет и pixelated.
- * SPRITE_SCALE в app.js масштабирует нативные пиксели в экранные
- * (на ESP32 спрайт рендерится 1:1, в браузере увеличиваем для читаемости).
+ * Канвас сцены. Внутреннее разрешение фиксировано (204x115 пикселей —
+ * приблизительно 85% от нативных 240x135 T-Display) и задаётся в HTML
+ * через width/height. CSS лишь растягивает канвас на ~85% площади экрана,
+ * сохраняя пропорции; image-rendering: pixelated даёт чёткие пиксели
+ * без сглаживания при апскейле. На ESP32 сцена рендерится 1:1 в нативном
+ * разрешении — никакого масштабирования.
  */
-.sprite {
-    background-repeat: no-repeat;
+.scene-canvas {
+    width: 85%;
+    height: 85%;
+    object-fit: contain;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    background: #000;
 }
 
 /* --- Физические кнопки --- */

@@ -1,0 +1,61 @@
+{
+    "_meta": {
+        "description": "Сцены для прототипа 'Дорога на восток'. Каждая сцена — упорядоченный список слоёв, рендерится в свой канвас 204x115 (≈85% от экрана T-Display 240x135). На ESP32 каждый слой переводится в одну операцию: rect → tft.fillRect, sprite → tft.pushImage. Координаты в пикселях ВНУТРЕННЕГО разрешения сцены (sceneWidth/sceneHeight ниже).",
+        "sceneWidth": 204,
+        "sceneHeight": 115,
+        "layer_types": {
+            "rect": "поля: x, y, w, h, color. Примитив для дороги/неба/тёмных полос.",
+            "sprite": "поля: sprite (имя из sprites.json или ${hero} = транспорт игрока), x?, y, anchor? (top-left|center-bottom|left-bottom), scrollSpeed? (px/сек, для тайлинга), spacing? (зазор между копиями при тайлинге), tile? (true → тайлить по всей ширине), freezeFrame? (зафиксировать кадр анимированного спрайта)."
+        }
+    },
+    "scenes": {
+        "walk_forest": {
+            "background": "#3a4a6a",
+            "layers": [
+                { "type": "rect",   "x": 0,   "y": 70,  "w": 204, "h": 17, "color": "#586c8a" },
+                { "type": "sprite", "sprite": "mountain", "y": 70, "scrollSpeed": 8,  "tile": true, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 87,  "w": 204, "h": 8,  "color": "#2f4a2a" },
+                { "type": "sprite", "sprite": "tree",     "y": 95, "scrollSpeed": 35, "tile": true, "spacing": 38, "anchor": "left-bottom" },
+                { "type": "sprite", "sprite": "bush",     "y": 100, "scrollSpeed": 60, "tile": true, "spacing": 24, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 100, "w": 204, "h": 15, "color": "#2c2620" },
+                { "type": "rect",   "x": 0,   "y": 100, "w": 204, "h": 2,  "color": "#3a3a3a" },
+                { "type": "rect",   "x": 0,   "y": 113, "w": 204, "h": 2,  "color": "#1a1a1a" },
+                { "type": "rect",   "x": 80,  "y": 106, "w": 14,  "h": 2,  "color": "#f1c40f" },
+                { "type": "rect",   "x": 110, "y": 106, "w": 14,  "h": 2,  "color": "#f1c40f" },
+                { "type": "rect",   "x": 140, "y": 106, "w": 14,  "h": 2,  "color": "#f1c40f" },
+                { "type": "sprite", "sprite": "${hero}",  "x": 102, "y": 103, "anchor": "center-bottom" }
+            ]
+        },
+        "garage_inspect": {
+            "background": "#1a1d24",
+            "layers": [
+                { "type": "rect",   "x": 0,   "y": 70,  "w": 204, "h": 30, "color": "#22282e" },
+                { "type": "sprite", "sprite": "mountain", "y": 75, "scrollSpeed": 0, "tile": true, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 100, "w": 204, "h": 15, "color": "#2a2520" },
+                { "type": "sprite", "sprite": "garage",   "x": 120, "y": 105, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 30,  "y": 108, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 188, "y": 108, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "${hero}",  "x": 55,  "y": 103, "anchor": "center-bottom", "freezeFrame": 0 }
+            ]
+        },
+        "campfire": {
+            "background": "#0a0d1f",
+            "layers": [
+                { "type": "rect",   "x": 0,   "y": 0,   "w": 204, "h": 70, "color": "#0a0d1f" },
+                { "type": "rect",   "x": 30,  "y": 12,  "w": 3,   "h": 3,  "color": "#ffffff" },
+                { "type": "rect",   "x": 70,  "y": 8,   "w": 2,   "h": 2,  "color": "#ffffff" },
+                { "type": "rect",   "x": 120, "y": 20,  "w": 2,   "h": 2,  "color": "#ffffff" },
+                { "type": "rect",   "x": 165, "y": 6,   "w": 3,   "h": 3,  "color": "#ffffff" },
+                { "type": "rect",   "x": 180, "y": 28,  "w": 2,   "h": 2,  "color": "#ffffff" },
+                { "type": "sprite", "sprite": "mountain", "y": 70, "scrollSpeed": 0, "tile": true, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 70,  "w": 204, "h": 45, "color": "#13180f" },
+                { "type": "sprite", "sprite": "tree",     "x": 18,  "y": 90, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "tree",     "x": 186, "y": 90, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "sit",      "x": 72,  "y": 108, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "sit",      "x": 132, "y": 108, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "fire",     "x": 102, "y": 110, "anchor": "center-bottom" }
+            ]
+        }
+    },
+    "default_scene": "walk_forest"
+}

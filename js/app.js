@@ -24,15 +24,26 @@
 let eventsData = [];
 
 // Манифест пиксель-арт спрайтов из data/sprites.json. Структура:
-//   spritesData.sprites[name] = { src, frameWidth, frameHeight, frames, fps }
+//   spritesData.sprites[name] = { src, frameWidth, frameHeight, frames, fps, kind }
 //   spritesData.transport_default = ['walk', 'bike', 'uaz']  // индекс = state.transport
 // На ESP32 этот же манифест читает конвертер ассетов: каждый PNG переводится
 // в массив RGB565 (или indexed+RLE) и линкуется в прошивку как PROGMEM-данные.
 let spritesData = { sprites: {}, transport_default: [] };
 
-// Масштаб спрайта в браузере: 1 пиксель спрайта = SPRITE_SCALE экранных пикселей.
-// На ESP32 спрайт рендерится 1:1 — этот множитель только для PWA-отладки.
-const SPRITE_SCALE = 5;
+// Закэшированные Image для отрисовки на канвасе. Заполняется в init().
+// На ESP32 эквивалент — статические PROGMEM-блобы, привязанные по имени.
+const spriteImages = {};
+
+// Сцены из data/scenes.json. Каждая сцена — упорядоченный список слоёв
+// (rect или sprite), который рендерится в канвас 204x115. На ESP32 этот
+// же список превращается в последовательность tft.fillRect / tft.pushImage.
+let scenesData = { scenes: {}, default_scene: null };
+
+// Внутреннее разрешение канваса сцены. Соответствует ≈85% от 240x135
+// (нативное разрешение T-Display). CSS-масштабирование на PWA ничего
+// не меняет в логических координатах; на ESP32 эти числа идут 1:1.
+const SCENE_W = 204;
+const SCENE_H = 115;
 
 // ----- СОСТОЯНИЕ ИГРЫ -----
 const state = {
@@ -64,7 +75,9 @@ const choicesArea    = document.getElementById('choices-area');
 const statusOverlay  = document.getElementById('status-overlay');
 const mapOverlay     = document.getElementById('map-overlay');
 const animScreen     = document.getElementById('animation-screen');
-const spriteEl       = document.getElementById('sprite');
+const sceneCanvas    = document.getElementById('scene-canvas');
+const sceneCtx       = sceneCanvas.getContext('2d');
+sceneCtx.imageSmoothingEnabled = false;
 const statusText     = document.getElementById('status-text-content');
 const hintText       = document.getElementById('hint-text-content');
 
@@ -173,66 +186,153 @@ function loadEvent(eventId) {
     renderChoices();
 }
 
-// ----- АНИМАЦИЯ (пиксель-арт спрайты) -----
-// Каждый спрайт-шит — горизонтальная полоса кадров frameWidth x frameHeight.
-// Смена кадра = сдвиг background-position по X. На ESP32 эквивалент —
-// tft.pushImage(x, y, frameWidth, frameHeight, &frames[i * frameWidth * frameHeight]).
-// Длительность перехода (1500 мс) одинаковая для всех — анимация просто
-// «крутится» пока идёт затемнение между событиями.
+// ----- АНИМАЦИЯ (сцены из пиксель-арт спрайтов) -----
+// Сцена = упорядоченный список слоёв (data/scenes.json). Слой бывает двух
+// типов:
+//   - rect:   ctx.fillRect → tft.fillRect на ESP32
+//   - sprite: ctx.drawImage(spriteSheet, srcX, 0, w, h, dx, dy, w, h)
+//             → tft.pushImage(dx, dy, w, h, &frames[srcX_bytes]) на ESP32
+// Параллакс реализован сдвигом world-offset = scrollSpeed × time_sec
+// по модулю периода тайла; для каждой видимой копии — отдельный pushImage.
+// Длительность перехода между событиями фиксированная — анимация просто
+// «крутится» нужное время, прежде чем мы загружаем следующее событие.
 const TRANSITION_MS = 1500;
 
-// Какой спрайт показать для выбора. Приоритет:
-//   1) choice.sprite                — точечное переопределение
-//   2) state.currentEvent.sprite    — общий спрайт сцены (если задан)
-//   3) transport_default[transport] — дефолт по текущему транспорту
-function pickSprite(choice) {
-    if (choice && choice.sprite) return choice.sprite;
-    const event = eventsData.find(e => e.id === state.currentEventId);
-    if (event && event.sprite) return event.sprite;
+// Имя «героя» в шаблонах слоёв: scenes.json пишет sprite: "${hero}",
+// а рендерер подставляет текущий транспорт игрока. На ESP32 та же
+// подстановка делается перед циклом отрисовки слоёв.
+const HERO_PLACEHOLDER = '${hero}';
+
+function heroSprite() {
     return spritesData.transport_default[state.transport]
-        || spritesData.transport_default[0];
+        || spritesData.transport_default[0]
+        || 'walk';
 }
 
-function applySpriteFrame(name, frame) {
-    const def = spritesData.sprites[name];
-    if (!def) {
-        spriteEl.style.display = 'none';
-        return;
-    }
-    const w = def.frameWidth  * SPRITE_SCALE;
-    const h = def.frameHeight * SPRITE_SCALE;
-    const sheetW = def.frameWidth * def.frames * SPRITE_SCALE;
+// Какую сцену показать для выбора. Приоритет:
+//   1) choice.scene                 — точечное переопределение
+//   2) event.scene (текущее событие)
+//   3) scenesData.default_scene
+//   4) синтетическая сцена из одного спрайта (back-compat для choice.sprite /
+//      event.sprite — на случай, если сцены ещё не описаны)
+function pickScene(choice) {
+    const explicitName =
+        (choice && choice.scene) ||
+        (function () {
+            const ev = eventsData.find(e => e.id === state.currentEventId);
+            return ev && ev.scene;
+        })() ||
+        scenesData.default_scene;
 
-    spriteEl.style.display        = 'block';
-    spriteEl.style.width          = `${w}px`;
-    spriteEl.style.height         = `${h}px`;
-    spriteEl.style.backgroundImage = `url("${def.src}")`;
-    spriteEl.style.backgroundSize  = `${sheetW}px ${h}px`;
-    spriteEl.style.backgroundPositionX = `-${(frame % def.frames) * w}px`;
-    spriteEl.style.backgroundPositionY = '0px';
+    if (explicitName && scenesData.scenes[explicitName]) {
+        return scenesData.scenes[explicitName];
+    }
+
+    // Back-compat: одна центрированная фигура героя на чёрном фоне.
+    const spriteName =
+        (choice && choice.sprite) ||
+        (function () {
+            const ev = eventsData.find(e => e.id === state.currentEventId);
+            return ev && ev.sprite;
+        })() ||
+        heroSprite();
+    return {
+        background: '#000',
+        layers: [
+            { type: 'sprite', sprite: spriteName, x: SCENE_W / 2, y: SCENE_H - 5, anchor: 'center-bottom' }
+        ]
+    };
+}
+
+// Один слой со спрайтом. Возвращает [dx, dy] анкера → левый-верхний угол.
+function anchorOffset(def, anchor) {
+    switch (anchor) {
+        case 'center-bottom': return [-def.frameWidth / 2, -def.frameHeight];
+        case 'left-bottom':   return [0, -def.frameHeight];
+        case 'top-left':
+        default:              return [0, 0];
+    }
+}
+
+function drawSpriteLayer(layer, timeSec) {
+    const name = layer.sprite === HERO_PLACEHOLDER ? heroSprite() : layer.sprite;
+    const def  = spritesData.sprites[name];
+    const img  = spriteImages[name];
+    if (!def || !img || !img.complete || img.naturalWidth === 0) return;
+
+    const fw = def.frameWidth;
+    const fh = def.frameHeight;
+
+    // Какой кадр анимации показать
+    let frame = 0;
+    if (typeof layer.freezeFrame === 'number') {
+        frame = layer.freezeFrame % def.frames;
+    } else if (def.frames > 1 && def.fps > 0) {
+        frame = Math.floor(timeSec * def.fps) % def.frames;
+    }
+    const srcX = frame * fw;
+
+    const [ax, ay] = anchorOffset(def, layer.anchor || 'top-left');
+
+    if (layer.tile) {
+        // Бесконечная лента, едущая справа налево с заданной скоростью.
+        const period = fw + (layer.spacing || 0);
+        const speed  = layer.scrollSpeed || 0;
+        const baseY  = (layer.y != null ? layer.y : 0) + ay;
+        // mod корректно работает для положительных и отрицательных значений
+        let offset = (speed * timeSec) % period;
+        if (offset < 0) offset += period;
+        // Начинаем с одной копии левее экрана, чтобы появление тайла было плавным
+        for (let x = -offset; x < SCENE_W; x += period) {
+            sceneCtx.drawImage(img, srcX, 0, fw, fh, Math.round(x), Math.round(baseY), fw, fh);
+        }
+    } else {
+        const dx = Math.round((layer.x != null ? layer.x : 0) + ax);
+        const dy = Math.round((layer.y != null ? layer.y : 0) + ay);
+        sceneCtx.drawImage(img, srcX, 0, fw, fh, dx, dy, fw, fh);
+    }
+}
+
+function drawRectLayer(layer) {
+    sceneCtx.fillStyle = layer.color || '#000';
+    sceneCtx.fillRect(
+        Math.round(layer.x || 0),
+        Math.round(layer.y || 0),
+        Math.round(layer.w || 0),
+        Math.round(layer.h || 0)
+    );
+}
+
+function renderScene(scene, timeSec) {
+    sceneCtx.fillStyle = scene.background || '#000';
+    sceneCtx.fillRect(0, 0, SCENE_W, SCENE_H);
+    for (const layer of scene.layers) {
+        if (layer.type === 'rect')        drawRectLayer(layer);
+        else if (layer.type === 'sprite') drawSpriteLayer(layer, timeSec);
+    }
 }
 
 function playTransition(callback, choice) {
     isAnimating = true;
     animScreen.classList.add('show');
 
-    const name = pickSprite(choice);
-    const def  = spritesData.sprites[name];
-    const fps  = (def && def.fps) ? def.fps : 4;
-    let f = 0;
+    const scene = pickScene(choice);
+    const startMs = performance.now();
+    let rafId = 0;
 
-    applySpriteFrame(name, f);
-    const interval = setInterval(() => {
-        f = (f + 1) % (def ? def.frames : 1);
-        applySpriteFrame(name, f);
-    }, Math.round(1000 / fps));
-
-    setTimeout(() => {
-        clearInterval(interval);
-        animScreen.classList.remove('show');
-        isAnimating = false;
-        callback();
-    }, TRANSITION_MS);
+    const tick = (nowMs) => {
+        const elapsed = nowMs - startMs;
+        renderScene(scene, elapsed / 1000);
+        if (elapsed >= TRANSITION_MS) {
+            cancelAnimationFrame(rafId);
+            animScreen.classList.remove('show');
+            isAnimating = false;
+            callback();
+            return;
+        }
+        rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
 }
 
 function applyChoice() {
@@ -388,22 +488,44 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ----- ЗАПУСК -----
-// Аналог: ESP32 при старте читает events.json и animations.json
-// (Wi-Fi/SPIFFS) → JsonDocument, и только после этого запускает игровой цикл.
+// Аналог: ESP32 при старте читает events.json / sprites.json / scenes.json
+// (Wi-Fi/SPIFFS) → JsonDocument, прелоадит спрайты в PROGMEM, и только
+// после этого запускает игровой цикл.
+function preloadSpriteImages() {
+    const promises = [];
+    for (const [name, def] of Object.entries(spritesData.sprites)) {
+        const img = new Image();
+        img.src  = def.src;
+        spriteImages[name] = img;
+        // Дожидаемся декодирования, чтобы первая сцена не моргала пустотой.
+        // При ошибке (нет файла) — продолжаем: рендерер просто пропустит слой.
+        promises.push(
+            img.decode ? img.decode().catch(() => {}) :
+            new Promise(res => { img.onload = img.onerror = res; })
+        );
+    }
+    return Promise.all(promises);
+}
+
 async function init() {
     try {
-        const [eventsRes, spritesRes] = await Promise.all([
+        const [eventsRes, spritesRes, scenesRes] = await Promise.all([
             fetch('./data/events.json'),
-            fetch('./data/sprites.json')
+            fetch('./data/sprites.json'),
+            fetch('./data/scenes.json')
         ]);
         if (!eventsRes.ok)  throw new Error(`events.json HTTP ${eventsRes.status}`);
         if (!spritesRes.ok) throw new Error(`sprites.json HTTP ${spritesRes.status}`);
-        eventsData   = await eventsRes.json();
-        spritesData  = await spritesRes.json();
+        if (!scenesRes.ok)  throw new Error(`scenes.json HTTP ${scenesRes.status}`);
+        eventsData  = await eventsRes.json();
+        spritesData = await spritesRes.json();
+        scenesData  = await scenesRes.json();
     } catch (err) {
         textArea.innerText = 'Ошибка загрузки ресурсов: ' + err.message;
         return;
     }
+
+    await preloadSpriteImages();
 
     resetGame();
     loadEvent(state.currentEventId);

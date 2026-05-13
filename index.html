@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#121212">
     <meta name="description" content="Дорога на восток — текстовая игра на выживание, прототип для ESP32 LilyGO T-Display">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:url" content="https://gritsenko.biz/buhanka/">
+    <meta property="og:title" content="Дорога на восток — T-Display">
+    <meta property="og:description" content="Дорога на восток — текстовая игра на выживание, прототип для ESP32 LilyGO T-Display">
+    <meta property="og:image" content="https://gritsenko.biz/buhanka/og/cover.jpg">
+    <meta property="og:image:alt" content="Обложка игры Дорога на восток">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Дорога на восток — T-Display">
+    <meta name="twitter:description" content="Дорога на восток — текстовая игра на выживание, прототип для ESP32 LilyGO T-Display">
+    <meta name="twitter:image" content="https://gritsenko.biz/buhanka/og/cover.jpg">
     <title>Дорога на восток — T-Display</title>
 
     <link rel="manifest" href="manifest.json">
@@ -32,9 +43,16 @@
                 </div>
             </div>
 
-            <!-- Экран анимации (пиксель-арт спрайт) -->
+            <!-- Экран анимации (пиксель-арт сцена) -->
+            <!--
+                Между событиями игра рисует сцену: фон, дальние горы,
+                деревья/кусты на параллаксе, дорогу-прямоугольник и
+                анимированного героя. Состав описан в data/scenes.json.
+                Внутреннее разрешение канваса фиксировано (см. SCENE_W/H
+                в js/app.js), CSS лишь масштабирует под ~85% экрана.
+            -->
             <div class="overlay animation-screen" id="animation-screen">
-                <div class="sprite" id="sprite"></div>
+                <canvas class="scene-canvas" id="scene-canvas" width="204" height="115"></canvas>
             </div>
 
             <!-- Стандартный UI -->
