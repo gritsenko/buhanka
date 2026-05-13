@@ -52,7 +52,7 @@
                 { "type": "sprite", "sprite": "tree",     "x": 86,  "y": 98, "anchor": "center-bottom" },
                 { "type": "sprite", "sprite": "bush",     "x": 16,  "y": 109, "anchor": "center-bottom" },
                 { "type": "sprite", "sprite": "bush",     "x": 72,  "y": 109, "anchor": "center-bottom" },
-                { "type": "sprite", "sprite": "${hero}",  "x": 150, "y": 103, "anchor": "center-bottom" }
+                { "type": "sprite", "sprite": "${hero}",  "x": 150, "y": 103, "anchor": "center-bottom", "animationSpeed": 0 }
             ]
         },
         "campfire": {

@@ -207,6 +207,30 @@ body {
     min-height: 0;
 }
 
+body.debug-mode .content-panel.debug-labelled {
+    padding-top: 42px;
+}
+
+body.debug-mode .content-panel.debug-labelled::before,
+body.debug-mode .animation-screen.debug-labelled::before {
+    content: attr(data-debug-label);
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    z-index: 40;
+    padding: 4px 10px;
+    border: 1px solid #557082;
+    border-radius: 999px;
+    background: rgba(5, 10, 16, 0.86);
+    color: #8ad6ff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
 .text-area {
     flex-grow: 1;
     font-size: 1.15rem;
@@ -518,6 +542,17 @@ body {
         padding: 12px;
     }
 
+    body.debug-mode .content-panel.debug-labelled {
+        padding-top: 38px;
+    }
+
+    body.debug-mode .content-panel.debug-labelled::before,
+    body.debug-mode .animation-screen.debug-labelled::before {
+        top: 10px;
+        left: 12px;
+        font-size: 0.66rem;
+    }
+
     .text-area {
         font-size: clamp(1rem, 4.2vw, 1.1rem);
         line-height: 1.45;
@@ -622,6 +657,17 @@ body {
 
     .content-panel {
         padding: 12px;
+    }
+
+    body.debug-mode .content-panel.debug-labelled {
+        padding-top: 36px;
+    }
+
+    body.debug-mode .content-panel.debug-labelled::before,
+    body.debug-mode .animation-screen.debug-labelled::before {
+        top: 10px;
+        left: 12px;
+        font-size: 0.64rem;
     }
 
     .text-area {

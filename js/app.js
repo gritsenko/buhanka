@@ -72,6 +72,7 @@ const foodBar        = document.getElementById('food-bar');
 const fuelBar        = document.getElementById('fuel-bar');
 const fuelContainer  = document.getElementById('fuel-container');
 const partyPanel     = document.getElementById('party-panel');
+const contentPanel   = document.querySelector('.content-panel');
 const textArea       = document.getElementById('text-area');
 const choicesArea    = document.getElementById('choices-area');
 
@@ -89,6 +90,31 @@ const statusText     = document.getElementById('status-text-content');
 const hintText       = document.getElementById('hint-text-content');
 
 const mapTouchBtn    = document.getElementById('map-touch-btn');
+const DEBUG_HOSTS    = new Set(['localhost', '127.0.0.1', '::1']);
+const isDebugMode    = DEBUG_HOSTS.has(window.location.hostname);
+
+document.body.classList.toggle('debug-mode', isDebugMode);
+
+function setDebugLabel(element, label) {
+    if (!element) return;
+
+    if (!isDebugMode || !label) {
+        delete element.dataset.debugLabel;
+        element.classList.remove('debug-labelled');
+        return;
+    }
+
+    element.dataset.debugLabel = label;
+    element.classList.add('debug-labelled');
+}
+
+function setEventDebugLabel(eventId) {
+    setDebugLabel(contentPanel, eventId ? `event: ${eventId}` : '');
+}
+
+function setSceneDebugLabel(sceneId) {
+    setDebugLabel(animScreen, sceneId ? `scene: ${sceneId}` : '');
+}
 
 // ----- ОТРИСОВКА -----
 function updateUI() {
@@ -185,6 +211,7 @@ function loadEvent(eventId) {
     if (!event) return;
 
     state.currentEventId = event.id;
+    setEventDebugLabel(event.id);
     textArea.innerText = event.text;
     currentChoices = event.choices;
     currentHint = event.hint || 'Подсказки нет.';
@@ -230,12 +257,34 @@ function heroSprite() {
 //   3) scenesData.default_scene
 //   4) синтетическая сцена из одного спрайта (back-compat для choice.sprite /
 //      event.sprite — на случай, если сцены ещё не описаны)
+function buildFallbackScene(choice) {
+    // Back-compat: одна центрированная фигура героя на чёрном фоне.
+    const spriteName =
+        (choice && choice.sprite) ||
+        (function () {
+            const ev = eventsData.find(e => e.id === state.currentEventId);
+            return ev && ev.sprite;
+        })() ||
+        heroSprite();
+
+    return {
+        id: null,
+        scene: {
+            background: '#000',
+            layers: [
+                { type: 'sprite', sprite: spriteName, x: SCENE_W / 2, y: SCENE_H - 5, anchor: 'center-bottom' }
+            ]
+        }
+    };
+}
+
 function pickScene(choice) {
     if (choice && Object.prototype.hasOwnProperty.call(choice, 'scene')) {
         if (choice.scene === null) return null;
         if (choice.scene && scenesData.scenes[choice.scene]) {
-            return scenesData.scenes[choice.scene];
+            return { id: choice.scene, scene: scenesData.scenes[choice.scene] };
         }
+        return buildFallbackScene(choice);
     }
 
     const explicitName =
@@ -246,23 +295,10 @@ function pickScene(choice) {
         scenesData.default_scene;
 
     if (explicitName && scenesData.scenes[explicitName]) {
-        return scenesData.scenes[explicitName];
+        return { id: explicitName, scene: scenesData.scenes[explicitName] };
     }
 
-    // Back-compat: одна центрированная фигура героя на чёрном фоне.
-    const spriteName =
-        (choice && choice.sprite) ||
-        (function () {
-            const ev = eventsData.find(e => e.id === state.currentEventId);
-            return ev && ev.sprite;
-        })() ||
-        heroSprite();
-    return {
-        background: '#000',
-        layers: [
-            { type: 'sprite', sprite: spriteName, x: SCENE_W / 2, y: SCENE_H - 5, anchor: 'center-bottom' }
-        ]
-    };
+    return buildFallbackScene(choice);
 }
 
 // Один слой со спрайтом. Возвращает [dx, dy] анкера → левый-верхний угол.
@@ -372,19 +408,22 @@ function hideAnimationScreen() {
     animScreen.classList.remove('show', 'result-mode');
     sceneCanvas.classList.remove('hidden');
     if (resultCard) resultCard.hidden = true;
+    setSceneDebugLabel('');
 }
 
 function playTransition(callback, choice) {
-    const scene = pickScene(choice);
-    if (!scene) {
+    const sceneInfo = pickScene(choice);
+    if (!sceneInfo || !sceneInfo.scene) {
+        setSceneDebugLabel('');
         callback();
         return;
     }
 
     isAnimating = true;
+    setSceneDebugLabel(sceneInfo.id);
     showAnimationScreen(false, true);
 
-    startScenePlayback(scene, (elapsedMs) => {
+    startScenePlayback(sceneInfo.scene, (elapsedMs) => {
         if (elapsedMs < TRANSITION_MS) return true;
 
         hideAnimationScreen();
@@ -400,7 +439,8 @@ function choiceHasResult(choice) {
 
 function pickResultScene(choice) {
     if (!choice || !choice.result_scene) return null;
-    return scenesData.scenes[choice.result_scene] || null;
+    if (!scenesData.scenes[choice.result_scene]) return null;
+    return { id: choice.result_scene, scene: scenesData.scenes[choice.result_scene] };
 }
 
 function showChoiceResult(choice) {
@@ -416,11 +456,12 @@ function showChoiceResult(choice) {
     resultText.innerText = activeChoiceResult.text;
     resultContinue.innerText = activeChoiceResult.continueText;
 
-    const scene = pickResultScene(choice);
-    showAnimationScreen(true, Boolean(scene));
+    const sceneInfo = pickResultScene(choice);
+    setSceneDebugLabel(sceneInfo && sceneInfo.id);
+    showAnimationScreen(true, Boolean(sceneInfo));
 
-    if (scene) {
-        startScenePlayback(scene, () => true);
+    if (sceneInfo) {
+        startScenePlayback(sceneInfo.scene, () => true);
     } else {
         stopScenePlayback();
     }
