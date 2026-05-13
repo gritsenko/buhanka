@@ -5,7 +5,7 @@
         "sceneHeight": 115,
         "layer_types": {
             "rect": "поля: x, y, w, h, color. Примитив для дороги/неба/тёмных полос.",
-            "sprite": "поля: sprite (имя из sprites.json или ${hero} = транспорт игрока), x?, y, anchor? (top-left|center-bottom|left-bottom), scrollSpeed? (px/сек, для тайлинга), spacing? (зазор между копиями при тайлинге), tile? (true → тайлить по всей ширине), freezeFrame? (зафиксировать кадр анимированного спрайта)."
+            "sprite": "поля: sprite (имя из sprites.json или ${hero} = транспорт игрока), x?, y, anchor? (top-left|center-bottom|left-bottom), scrollSpeed? (px/сек, для тайлинга), spacing? (зазор между копиями при тайлинге), tile? (true → тайлить по всей ширине), animationSpeed? (множитель скорости смены кадров, 0 = кадры не меняются), freezeFrame? (жестко зафиксировать конкретный кадр)."
         }
     },
     "scenes": {
@@ -38,6 +38,23 @@
                 { "type": "sprite", "sprite": "${hero}",  "x": 55,  "y": 103, "anchor": "center-bottom", "freezeFrame": 0 }
             ]
         },
+        "bike_departure": {
+            "background": "#24324a",
+            "layers": [
+                { "type": "rect",   "x": 0,   "y": 68,  "w": 204, "h": 20, "color": "#6b7890" },
+                { "type": "sprite", "sprite": "mountain", "y": 68, "scrollSpeed": 0, "tile": true, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 88,  "w": 204, "h": 27, "color": "#2f281d" },
+                { "type": "rect",   "x": 86,  "y": 97,  "w": 118, "h": 8,  "color": "#393939" },
+                { "type": "rect",   "x": 102, "y": 100, "w": 16,  "h": 2,  "color": "#f1c40f" },
+                { "type": "rect",   "x": 130, "y": 100, "w": 16,  "h": 2,  "color": "#f1c40f" },
+                { "type": "rect",   "x": 158, "y": 100, "w": 16,  "h": 2,  "color": "#f1c40f" },
+                { "type": "sprite", "sprite": "garage",   "x": 44,  "y": 105, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "tree",     "x": 86,  "y": 98, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 16,  "y": 109, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 72,  "y": 109, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "${hero}",  "x": 150, "y": 103, "anchor": "center-bottom" }
+            ]
+        },
         "campfire": {
             "background": "#0a0d1f",
             "layers": [
@@ -54,6 +71,21 @@
                 { "type": "sprite", "sprite": "sit",      "x": 72,  "y": 108, "anchor": "center-bottom" },
                 { "type": "sprite", "sprite": "sit",      "x": 132, "y": 108, "anchor": "center-bottom" },
                 { "type": "sprite", "sprite": "fire",     "x": 102, "y": 110, "anchor": "center-bottom" }
+            ]
+        },
+        "dirty_water_aftermath": {
+            "background": "#1c2230",
+            "layers": [
+                { "type": "rect",   "x": 0,   "y": 72,  "w": 204, "h": 15, "color": "#4a5b72" },
+                { "type": "sprite", "sprite": "mountain", "y": 72, "scrollSpeed": 0, "tile": true, "anchor": "left-bottom" },
+                { "type": "rect",   "x": 0,   "y": 87,  "w": 204, "h": 28, "color": "#322c20" },
+                { "type": "rect",   "x": 56,  "y": 96,  "w": 92,  "h": 10, "color": "#5d5334" },
+                { "type": "rect",   "x": 62,  "y": 98,  "w": 80,  "h": 6,  "color": "#647554" },
+                { "type": "sprite", "sprite": "tree",     "x": 24,  "y": 98, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "tree",     "x": 182, "y": 98, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 72,  "y": 104, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "bush",     "x": 136, "y": 104, "anchor": "center-bottom" },
+                { "type": "sprite", "sprite": "${hero}",  "x": 102, "y": 103, "anchor": "center-bottom", "freezeFrame": 0 }
             ]
         }
     },

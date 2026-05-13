@@ -8,7 +8,8 @@
  *   - события игры читаются из data/events.json (на ESP32 файл будет
  *     скачиваться по Wi-Fi и парситься через ArduinoJson, поэтому поля
  *     зафиксированы: id, text, hint, sprite, choices[], hp_mod, food_mod,
- *     mood_mod, transport_mod, fuel_mod, next_id, unlock_friend[_2]);
+ *     mood_mod, transport_mod, fuel_mod, next_id, result_title,
+ *     result_text, result_scene, continue_text, unlock_friend[_2]);
  *   - кадры пиксель-арт анимаций — PNG-спрайт-шиты в assets/sprites/,
  *     описанные в data/sprites.json. Перед прошивкой ESP32 отдельный
  *     скрипт-конвертер переводит PNG в массивы RGB565 (или indexed+RLE)
@@ -63,6 +64,8 @@ let currentChoices = [];
 let currentHint = '';
 let selectedChoiceIndex = 0;
 let isAnimating = false;
+let activeChoiceResult = null;
+let scenePlaybackId = 0;
 
 // ----- DOM -----
 const foodBar        = document.getElementById('food-bar');
@@ -78,6 +81,10 @@ const animScreen     = document.getElementById('animation-screen');
 const sceneCanvas    = document.getElementById('scene-canvas');
 const sceneCtx       = sceneCanvas.getContext('2d');
 sceneCtx.imageSmoothingEnabled = false;
+const resultCard     = document.getElementById('result-card');
+const resultTitle    = document.getElementById('result-title-content');
+const resultText     = document.getElementById('result-text-content');
+const resultContinue = document.getElementById('result-continue-content');
 const statusText     = document.getElementById('status-text-content');
 const hintText       = document.getElementById('hint-text-content');
 
@@ -163,6 +170,11 @@ function resetGame() {
     });
 }
 
+function advanceToEvent(eventId) {
+    if (eventId === 'start') resetGame();
+    loadEvent(eventId);
+}
+
 function loadEvent(eventId) {
     const hero = state.party.find(m => m.id === 'hero');
     if ((state.food <= 0 || hero.hp <= 0) && eventId !== 'start') {
@@ -194,6 +206,8 @@ function loadEvent(eventId) {
 //             → tft.pushImage(dx, dy, w, h, &frames[srcX_bytes]) на ESP32
 // Параллакс реализован сдвигом world-offset = scrollSpeed × time_sec
 // по модулю периода тайла; для каждой видимой копии — отдельный pushImage.
+// Для конкретного спрайта можно остановить смену кадров через
+// layer.animationSpeed = 0 или жестко выбрать кадр через freezeFrame.
 // Длительность перехода между событиями фиксированная — анимация просто
 // «крутится» нужное время, прежде чем мы загружаем следующее событие.
 const TRANSITION_MS = 1500;
@@ -211,13 +225,20 @@ function heroSprite() {
 
 // Какую сцену показать для выбора. Приоритет:
 //   1) choice.scene                 — точечное переопределение
+//      choice.scene === null        — явно не показывать обычную сцену
 //   2) event.scene (текущее событие)
 //   3) scenesData.default_scene
 //   4) синтетическая сцена из одного спрайта (back-compat для choice.sprite /
 //      event.sprite — на случай, если сцены ещё не описаны)
 function pickScene(choice) {
+    if (choice && Object.prototype.hasOwnProperty.call(choice, 'scene')) {
+        if (choice.scene === null) return null;
+        if (choice.scene && scenesData.scenes[choice.scene]) {
+            return scenesData.scenes[choice.scene];
+        }
+    }
+
     const explicitName =
-        (choice && choice.scene) ||
         (function () {
             const ev = eventsData.find(e => e.id === state.currentEventId);
             return ev && ev.scene;
@@ -254,6 +275,11 @@ function anchorOffset(def, anchor) {
     }
 }
 
+function layerAnimationSpeed(layer) {
+    if (typeof layer.animationSpeed === 'number') return layer.animationSpeed;
+    return 1;
+}
+
 function drawSpriteLayer(layer, timeSec) {
     const name = layer.sprite === HERO_PLACEHOLDER ? heroSprite() : layer.sprite;
     const def  = spritesData.sprites[name];
@@ -262,13 +288,14 @@ function drawSpriteLayer(layer, timeSec) {
 
     const fw = def.frameWidth;
     const fh = def.frameHeight;
+    const frameTimeSec = timeSec * layerAnimationSpeed(layer);
 
     // Какой кадр анимации показать
     let frame = 0;
     if (typeof layer.freezeFrame === 'number') {
         frame = layer.freezeFrame % def.frames;
     } else if (def.frames > 1 && def.fps > 0) {
-        frame = Math.floor(timeSec * def.fps) % def.frames;
+        frame = Math.floor(frameTimeSec * def.fps) % def.frames;
     }
     const srcX = frame * fw;
 
@@ -277,10 +304,9 @@ function drawSpriteLayer(layer, timeSec) {
     if (layer.tile) {
         // Бесконечная лента, едущая справа налево с заданной скоростью.
         const period = fw + (layer.spacing || 0);
-        const speed  = layer.scrollSpeed || 0;
         const baseY  = (layer.y != null ? layer.y : 0) + ay;
         // mod корректно работает для положительных и отрицательных значений
-        let offset = (speed * timeSec) % period;
+        let offset = ((layer.scrollSpeed || 0) * timeSec) % period;
         if (offset < 0) offset += period;
         // Начинаем с одной копии левее экрана, чтобы появление тайла было плавным
         for (let x = -offset; x < SCENE_W; x += period) {
@@ -312,35 +338,119 @@ function renderScene(scene, timeSec) {
     }
 }
 
-function playTransition(callback, choice) {
-    isAnimating = true;
-    animScreen.classList.add('show');
+function stopScenePlayback() {
+    if (!scenePlaybackId) return;
+    cancelAnimationFrame(scenePlaybackId);
+    scenePlaybackId = 0;
+}
 
-    const scene = pickScene(choice);
+function startScenePlayback(scene, shouldContinue) {
+    stopScenePlayback();
+
     const startMs = performance.now();
-    let rafId = 0;
-
     const tick = (nowMs) => {
-        const elapsed = nowMs - startMs;
-        renderScene(scene, elapsed / 1000);
-        if (elapsed >= TRANSITION_MS) {
-            cancelAnimationFrame(rafId);
-            animScreen.classList.remove('show');
-            isAnimating = false;
-            callback();
+        const elapsedMs = nowMs - startMs;
+        renderScene(scene, elapsedMs / 1000);
+        if (shouldContinue && !shouldContinue(elapsedMs)) {
+            scenePlaybackId = 0;
             return;
         }
-        rafId = requestAnimationFrame(tick);
+        scenePlaybackId = requestAnimationFrame(tick);
     };
-    rafId = requestAnimationFrame(tick);
+
+    scenePlaybackId = requestAnimationFrame(tick);
+}
+
+function showAnimationScreen(showResultCard, hasScene) {
+    animScreen.classList.add('show');
+    animScreen.classList.toggle('result-mode', showResultCard);
+    sceneCanvas.classList.toggle('hidden', !hasScene);
+    if (resultCard) resultCard.hidden = !showResultCard;
+}
+
+function hideAnimationScreen() {
+    animScreen.classList.remove('show', 'result-mode');
+    sceneCanvas.classList.remove('hidden');
+    if (resultCard) resultCard.hidden = true;
+}
+
+function playTransition(callback, choice) {
+    const scene = pickScene(choice);
+    if (!scene) {
+        callback();
+        return;
+    }
+
+    isAnimating = true;
+    showAnimationScreen(false, true);
+
+    startScenePlayback(scene, (elapsedMs) => {
+        if (elapsedMs < TRANSITION_MS) return true;
+
+        hideAnimationScreen();
+        isAnimating = false;
+        callback();
+        return false;
+    });
+}
+
+function choiceHasResult(choice) {
+    return Boolean(choice && (choice.result_text || choice.result_scene || choice.result_title));
+}
+
+function pickResultScene(choice) {
+    if (!choice || !choice.result_scene) return null;
+    return scenesData.scenes[choice.result_scene] || null;
+}
+
+function showChoiceResult(choice) {
+    activeChoiceResult = {
+        nextEventId: choice.next_id,
+        pendingChoice: choice,
+        title: choice.result_title || 'Последствия выбора',
+        text: choice.result_text || '',
+        continueText: choice.continue_text || 'Нажмите, чтобы продолжить'
+    };
+
+    resultTitle.innerText = activeChoiceResult.title;
+    resultText.innerText = activeChoiceResult.text;
+    resultContinue.innerText = activeChoiceResult.continueText;
+
+    const scene = pickResultScene(choice);
+    showAnimationScreen(true, Boolean(scene));
+
+    if (scene) {
+        startScenePlayback(scene, () => true);
+    } else {
+        stopScenePlayback();
+    }
+}
+
+function continueChoiceResult() {
+    if (!activeChoiceResult) return false;
+
+    const nextEventId = activeChoiceResult.nextEventId;
+    const pendingChoice = activeChoiceResult.pendingChoice;
+    activeChoiceResult = null;
+    stopScenePlayback();
+    hideAnimationScreen();
+
+    if (pendingChoice) {
+        playTransition(() => {
+            advanceToEvent(nextEventId);
+        }, pendingChoice);
+        return true;
+    }
+
+    advanceToEvent(nextEventId);
+    return true;
 }
 
 function applyChoice() {
     const choice = currentChoices[selectedChoiceIndex];
 
-    if (choice.next_id === 'start') {
-        resetGame();
-        loadEvent('start');
+    if (activeChoiceResult) {
+        continueChoiceResult();
         return;
     }
 
@@ -353,8 +463,13 @@ function applyChoice() {
         }
     });
 
+    if (choiceHasResult(choice)) {
+        showChoiceResult(choice);
+        return;
+    }
+
     playTransition(() => {
-        loadEvent(choice.next_id);
+        advanceToEvent(choice.next_id);
     }, choice);
 }
 
@@ -371,6 +486,7 @@ function setupButton(btnId, shortCb, longCb) {
         if (isAnimating) return;
         isLong = false;
         btn.style.transform = 'translateY(2px)';
+        if (activeChoiceResult) return;
         timer = setTimeout(() => {
             isLong = true;
             if (longCb) longCb();
@@ -381,6 +497,10 @@ function setupButton(btnId, shortCb, longCb) {
         e.preventDefault();
         btn.style.transform = 'translateY(0)';
         clearTimeout(timer);
+        if (activeChoiceResult) {
+            continueChoiceResult();
+            return;
+        }
         if (!isLong && shortCb) shortCb();
     };
 
@@ -413,11 +533,15 @@ function closeAnyOverlay() {
 // ----- ТАЧ-СОБЫТИЯ И ЗОНЫ -----
 statusOverlay.addEventListener('click', closeAnyOverlay);
 mapOverlay.addEventListener('click', closeAnyOverlay);
+animScreen.addEventListener('click', (e) => {
+    e.stopPropagation();
+    continueChoiceResult();
+});
 
 // Тап по панели отряда → статус / подсказка
 partyPanel.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (closeAnyOverlay() || isAnimating) return;
+    if (activeChoiceResult || closeAnyOverlay() || isAnimating) return;
     statusText.innerText = generateStatusText();
     hintText.innerText = '💡 ' + currentHint;
     statusOverlay.classList.add('show');
@@ -426,7 +550,7 @@ partyPanel.addEventListener('click', (e) => {
 // Тап по иконке карты
 mapTouchBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (closeAnyOverlay() || isAnimating) return;
+    if (activeChoiceResult || closeAnyOverlay() || isAnimating) return;
     mapOverlay.classList.add('show');
 });
 
@@ -461,6 +585,13 @@ setupButton('btn-bottom',
 
 // Клавиатура (для отладки на десктопе)
 window.addEventListener('keydown', (e) => {
+    if (activeChoiceResult) {
+        if (['ArrowUp', 'ArrowDown', '1', '2', 'Enter', ' '].includes(e.key)) {
+            continueChoiceResult();
+        }
+        return;
+    }
+
     if (isAnimating) return;
 
     const validKeys = ['arrowup', '1', 'arrowdown', '2', 'enter', 'i', 'ш', 'm', 'ь', 'escape', ' '];

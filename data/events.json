@@ -4,8 +4,8 @@
         "text": "Вы проснулись в пустом подмосковном поселке. Никого нет, связи тоже. Нужно выбираться на восток. Идти пешком с тяжелым рюкзаком очень утомительно.",
         "hint": "Движение по асфальту тратит меньше сил, чем по пересеченной местности. В гаражах можно найти полезное.",
         "choices": [
-            { "action": "Идти по шоссе",   "food_mod": -15, "hp_mod": -10, "mood_mod": -20, "next_id": "highway", "scene": "walk_forest" },
-            { "action": "Осмотреть гаражи", "food_mod":  -5, "hp_mod":   0, "mood_mod":   0, "next_id": "garage",  "scene": "garage_inspect" }
+            { "action": "Идти по шоссе",   "food_mod": -15, "hp_mod": -10, "mood_mod": -20, "next_id": "highway", "scene": "walk_forest", "result_title": "Первый марш-бросок", "result_text": "Асфальт ведет вперед быстрее, но рюкзак тут же напоминает о себе. Плечи немеют, ноги гудят, и первый отрезок пути съедает слишком много сил." },
+            { "action": "Осмотреть гаражи", "food_mod":  -5, "hp_mod":   0, "mood_mod":   0, "next_id": "garage",  "scene": "garage_inspect", "result_title": "Ржавая створка", "result_text": "Вы сворачиваете во двор и с усилием раздвигаете покосившиеся ворота. Внутри явно есть шанс найти что-то полезное." }
         ]
     },
     {
@@ -14,7 +14,7 @@
         "text": "В открытом гараже соседа вы находите старый, но рабочий велосипед 'Кама'. Рядом валяется банка сгущенки.",
         "hint": "Колесный транспорт экономит до 70% энергии. Вы перемещаетесь быстрее.",
         "choices": [
-            { "action": "Поехать на велосипеде", "transport_mod": 1, "food_mod": 10, "hp_mod": 5, "mood_mod": 30, "next_id": "meet_sashka", "scene": "walk_forest" }
+            { "action": "Поехать на велосипеде", "transport_mod": 1, "food_mod": 10, "hp_mod": 5, "mood_mod": 30, "next_id": "meet_sashka", "scene": null, "result_title": "Новый ход", "result_text": "Пара минут возни, цепь встает на место, а сгущенка быстро возвращает силы. Теперь дорога на восток уже не кажется безнадёжной.", "result_scene": "bike_departure", "continue_text": "Нажмите, чтобы выехать" }
         ]
     },
     {
@@ -23,8 +23,8 @@
         "text": "Вы идете по пустой трассе. Жарко, ноги гудят. На обочине замечаете брошенный кемпер, но дверь заперта.",
         "hint": "Без инструмента лучше не тратить силы на взлом крепких замков — можно травмироваться.",
         "choices": [
-            { "action": "Разбить стекло", "food_mod":  15, "hp_mod": -15, "mood_mod": -10, "next_id": "meet_sashka", "scene": "walk_forest" },
-            { "action": "Идти дальше",    "food_mod": -10, "hp_mod":  -5, "mood_mod": -15, "next_id": "meet_sashka", "scene": "walk_forest" }
+            { "action": "Разбить стекло", "food_mod":  15, "hp_mod": -15, "mood_mod": -10, "next_id": "meet_sashka", "scene": "walk_forest", "result_title": "Добыча через осколки", "result_text": "В кемпере находятся припасы, но стекло рвет ладони и предплечья. Еды стало больше, а вот идти теперь заметно больнее." },
+            { "action": "Идти дальше",    "food_mod": -10, "hp_mod":  -5, "mood_mod": -15, "next_id": "meet_sashka", "scene": "walk_forest", "result_title": "Пустая трасса", "result_text": "Вы оставляете кемпер позади. Трасса тянется бесконечно, солнце давит сверху, и каждый следующий километр кажется лишним." }
         ]
     },
     {
@@ -34,8 +34,8 @@
         "scene": "campfire",
         "unlock_friend": "sashka",
         "choices": [
-            { "action": "Развести огонь трением", "food_mod": 20, "hp_mod":  -5, "mood_mod":  20, "next_id": "forest_camp", "scene": "campfire" },
-            { "action": "Съесть рыбу сырой",      "food_mod": 10, "hp_mod": -20, "mood_mod": -30, "next_id": "forest_camp", "scene": "campfire" }
+            { "action": "Развести огонь трением", "food_mod": 20, "hp_mod":  -5, "mood_mod":  20, "next_id": "forest_camp", "scene": "campfire", "result_title": "Огонь есть", "result_text": "После долгой возни трут наконец вспыхивает. Рыба шипит на огне, усталость никуда не девается, зато у отряда снова появляется надежда." },
+            { "action": "Съесть рыбу сырой",      "food_mod": 10, "hp_mod": -20, "mood_mod": -30, "next_id": "forest_camp", "scene": "campfire", "result_title": "Сырая рыба", "result_text": "Голод отступает, но ненадолго. Вскоре вас с Сашкой начинает мутить, тело ватное, а настроение падает вместе с силами." }
         ]
     },
     {
@@ -44,8 +44,8 @@
         "text": "Поев, вы понимаете, что запасы воды на исходе. Рядом только мутная лужа. Надо что-то делать.",
         "hint": "Многослойный фильтр (уголь, песок, ткань) очистит от грязи, но для уничтожения бактерий воду ОБЯЗАТЕЛЬНО кипятить.",
         "choices": [
-            { "action": "Угольный фильтр", "food_mod": -5, "hp_mod":  10, "mood_mod":  15, "next_id": "find_uaz", "scene": "walk_forest" },
-            { "action": "Пить так",        "food_mod":  0, "hp_mod": -30, "mood_mod": -20, "next_id": "find_uaz", "scene": "walk_forest" }
+            { "action": "Угольный фильтр", "food_mod": -5, "hp_mod":  10, "mood_mod":  15, "next_id": "find_uaz", "scene": "walk_forest", "result_title": "Терпимая вода", "result_text": "Самодельный фильтр не делает лужу вкусной, но хотя бы снимает жажду без мгновенной расплаты. Отряд приходит в себя и двигается дальше увереннее." },
+            { "action": "Пить так",        "food_mod":  0, "hp_mod": -30, "mood_mod": -20, "next_id": "find_uaz", "scene": "walk_forest", "result_title": "Сырая вода", "result_text": "Через несколько часов становится ясно, что вода была плохой. Отряд скручивает, животы режет, и дальше приходится идти через слабость.", "result_scene": "dirty_water_aftermath", "continue_text": "Нажмите, чтобы собраться и идти дальше" }
         ]
     },
     {
@@ -57,7 +57,7 @@
         "unlock_friend_2": "maks",
         "fuel_mod": 50,
         "choices": [
-            { "action": "Толкать всем вместе!", "transport_mod": 2, "food_mod": -15, "hp_mod": -5, "mood_mod": 10, "next_id": "victory", "scene": "walk_forest" }
+            { "action": "Толкать всем вместе!", "transport_mod": 2, "food_mod": -15, "hp_mod": -5, "mood_mod": 10, "next_id": "victory", "scene": "walk_forest", "result_title": "Мотор ожил", "result_text": "УАЗ дергается, кашляет и вдруг схватывает. Все вымотаны, но в этот момент смех и облегчение оказываются сильнее усталости." }
         ]
     },
     {
