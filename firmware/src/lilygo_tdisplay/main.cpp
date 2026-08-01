@@ -1,68 +1,76 @@
-// Initial firmware for "Дорога на восток" on LilyGO TTGO T-Display v1.1.
+// Hardware client for "Дорога на восток" on LilyGO TTGO T-Display v1.1.
+//
+// This file owns only the platform: display bring-up, the two buttons and the
+// frame pump. Game rules, layout and the pixel-art scenes live in src/common/
+// and draw into a plain RGB565 Canvas, which is pushed to the panel here.
 //
 // Hardware:
 //   - ST7789 135x240 TFT, used in landscape (240x135 after rotation 1)
 //   - Two user buttons: GPIO 0 and GPIO 35
 //   - Backlight on GPIO 4
-//
-// Splash bitmap and bitmap font with Cyrillic glyphs are generated from
-// assets/sprites/splash.png and a TTF by scripts/build_firmware_assets.py
-// into firmware/include/generated/.
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 
-#include "generated/font_8x16.h"
-#include "generated/splash_image.h"
+#include "canvas.h"
+#include "game.h"
 #include "road_east_version.h"
-#include "text_render.h"
+#include "ui.h"
 
 namespace {
 
-constexpr int kScreenW = 240;
-constexpr int kScreenH = 135;
+constexpr int kScreenW = road_east::ui::kScreenWidth;
+constexpr int kScreenH = road_east::ui::kScreenHeight;
 
 constexpr int kBacklightPin = 4;
-// In landscape (rotation 1) the buttons sit on the right edge of the screen.
-// We don't bake any "left/right" semantics into the names — the firmware just
-// labels them by function (select vs. switch).
-constexpr int kBtnSelectPin = 0;
-constexpr int kBtnSwitchPin = 35;
+// In landscape (rotation 1) GPIO 35 is the upper button and GPIO 0 the lower
+// one, matching the #btn-top / #btn-bottom pair of the PWA prototype.
+constexpr int kBtnTopPin = 35;     // "ВЫБОР": short — next choice, long — status
+constexpr int kBtnBottomPin = 0;   // "ОК":    short — confirm,     long — map
 
 constexpr uint32_t kFrameMs = 33;
 constexpr uint32_t kSplashMinMs = 800;
+// setupButton() in js/app.js treats anything past 600 ms as a long press.
+constexpr uint32_t kLongPressMs = 600;
 
-enum class Scene {
+enum class Screen {
     Splash,
     Menu,
+    About,
+    Game,
 };
 
 struct Button {
     int pin;
     bool down = false;
     bool prev = false;
+    uint32_t pressedAt = 0;
+    bool longFired = false;
+    bool armed = false;  // false when the press started while input was blocked
 
     explicit Button(int p) : pin(p) {}
     bool justPressed() const { return down && !prev; }
+    bool justReleased() const { return !down && prev; }
 };
 
 TFT_eSPI tft;
-TFT_eSprite frame = TFT_eSprite(&tft);
 
-Scene scene = Scene::Splash;
+// The one and only framebuffer: 240 * 135 * 2 = 64800 bytes of DRAM.
+uint16_t frameBuffer[kScreenW * kScreenH];
+road_east::gfx::Canvas canvas(frameBuffer, kScreenW, kScreenH);
+
+road_east::game::Game game;
+
+Screen screen = Screen::Splash;
 uint32_t splashStartedAt = 0;
 uint32_t lastFrameAt = 0;
 
-Button btnSelect{kBtnSelectPin};
-Button btnSwitch{kBtnSwitchPin};
+Button btnTop{kBtnTopPin};
+Button btnBottom{kBtnBottomPin};
 
-int menuCursor = 0;
 constexpr int kMenuItemCount = 3;
-const char* const kMenuItems[kMenuItemCount] = {
-    "Новая поездка",
-    "Продолжить",
-    "Об игре",
-};
+int menuCursor = 0;
+bool runStarted = false;  // enables "Продолжить"
 
 void setBacklight(bool on) {
     pinMode(kBacklightPin, OUTPUT);
@@ -74,87 +82,99 @@ void readButton(Button& b) {
     b.down = digitalRead(b.pin) == LOW;
 }
 
-// Blit the 4bpp packed splash bitmap into the back-buffer sprite, decoding
-// one row at a time through a small RGB565 line buffer.
-void blitSplashBitmap() {
-    using namespace road_east::assets;
-    static uint16_t rowBuf[kSplashWidth];
-    for (int y = 0; y < kSplashHeight; ++y) {
-        const uint8_t* src = &kSplashPixels[y * (kSplashWidth / 2)];
-        for (int x = 0; x < kSplashWidth; x += 2) {
-            const uint8_t byte = src[x / 2];
-            rowBuf[x] = kSplashPalette[byte >> 4];
-            rowBuf[x + 1] = kSplashPalette[byte & 0x0F];
-        }
-        frame.pushImage(0, y, kSplashWidth, 1, rowBuf);
+void activateMenuItem(uint32_t now) {
+    switch (menuCursor) {
+        case 0:
+            game.reset(now);
+            runStarted = true;
+            screen = Screen::Game;
+            break;
+        case 1:
+            if (runStarted) screen = Screen::Game;
+            break;
+        default:
+            screen = Screen::About;
+            break;
     }
 }
 
-void drawSplash(uint32_t now) {
-    blitSplashBitmap();
+// Mirrors setupButton() in js/app.js: a press is ignored outright while a
+// transition plays, a hold past kLongPressMs fires the long action once, and a
+// release either dismisses the result card or runs the short action.
+void updateGameButton(Button& b, uint32_t now, bool isTopButton) {
+    using road_east::game::Overlay;
+    using road_east::game::Phase;
 
-    const bool blink = ((now / 500) % 2) == 0;
-    if (blink) {
-        // Subtle prompt over the artwork: a small dark band keeps it legible.
-        const int promptY = kScreenH - 18;
-        frame.fillRect(0, promptY - 2, kScreenW, 18, TFT_BLACK);
-        road_east::ui::drawTextAnchored(
-            frame, kScreenW / 2, promptY, "Нажмите кнопку",
-            TFT_YELLOW, road_east::ui::TextAnchor::TopCenter);
+    if (b.justPressed()) {
+        b.armed = !game.busy();
+        b.longFired = false;
+        b.pressedAt = now;
     }
 
-    frame.pushSprite(0, 0);
-}
-
-void drawMenu() {
-    frame.fillSprite(TFT_BLACK);
-
-    // Title bar.
-    frame.fillRect(0, 0, kScreenW, 22, TFT_NAVY);
-    road_east::ui::drawTextAnchored(
-        frame, kScreenW / 2, 3, "ДОРОГА НА ВОСТОК",
-        TFT_WHITE, road_east::ui::TextAnchor::TopCenter);
-
-    const int itemTop = 36;
-    const int itemH = 22;
-    for (int i = 0; i < kMenuItemCount; ++i) {
-        const bool selected = (i == menuCursor);
-        const int y = itemTop + i * itemH;
-        const uint16_t fg = selected ? TFT_WHITE : TFT_SILVER;
-        if (selected) {
-            frame.fillRoundRect(6, y - 2, kScreenW - 12, 20, 4, TFT_DARKGREEN);
+    if (b.down && b.armed && !b.longFired && game.phase() != Phase::Result &&
+        now - b.pressedAt >= kLongPressMs) {
+        b.longFired = true;
+        if (isTopButton) {
+            // Second long press on the status overlay leaves for the menu —
+            // the only way back on hardware that has just two buttons.
+            if (game.overlay() == Overlay::Status) {
+                game.closeOverlay();
+                screen = Screen::Menu;
+            } else {
+                game.openStatus();
+            }
+        } else {
+            game.openMap();
         }
-        road_east::ui::drawTextAnchored(
-            frame, kScreenW / 2, y, kMenuItems[i], fg,
-            road_east::ui::TextAnchor::TopCenter);
     }
 
-    // Footer with control hint + version.
-    road_east::ui::drawTextAnchored(
-        frame, kScreenW / 2, kScreenH - 18,
-        "Верх: выбор   Низ: далее",
-        TFT_DARKGREY, road_east::ui::TextAnchor::TopCenter);
-
-    frame.pushSprite(0, 0);
+    if (b.justReleased()) {
+        const bool armed = b.armed;
+        b.armed = false;
+        if (!armed) return;
+        if (game.phase() == Phase::Result) {
+            game.confirm(now);
+            return;
+        }
+        if (b.longFired) return;
+        if (isTopButton) {
+            game.selectNext();
+        } else {
+            game.confirm(now);
+        }
+    }
 }
 
 void updateSplash(uint32_t now) {
-    const bool anyEdge = btnSelect.justPressed() || btnSwitch.justPressed();
+    const bool anyEdge = btnTop.justPressed() || btnBottom.justPressed();
     if (anyEdge && now - splashStartedAt >= kSplashMinMs) {
-        scene = Scene::Menu;
+        screen = Screen::Menu;
     }
-    drawSplash(now);
+    road_east::ui::drawSplash(canvas, now);
 }
 
-void updateMenu() {
-    if (btnSwitch.justPressed()) {
+void updateMenu(uint32_t now) {
+    if (btnTop.justPressed()) {
         menuCursor = (menuCursor + 1) % kMenuItemCount;
     }
-    if (btnSelect.justPressed()) {
-        Serial.print("[menu] selected: ");
-        Serial.println(kMenuItems[menuCursor]);
+    if (btnBottom.justPressed()) {
+        activateMenuItem(now);
     }
-    drawMenu();
+    road_east::ui::drawMenu(canvas, menuCursor, runStarted);
+}
+
+void updateAbout() {
+    if (btnTop.justPressed() || btnBottom.justPressed()) {
+        screen = Screen::Menu;
+    }
+    road_east::ui::drawAbout(canvas);
+}
+
+void updateGame(uint32_t now) {
+    updateGameButton(btnTop, now, true);
+    updateGameButton(btnBottom, now, false);
+    game.tick(now);
+    road_east::ui::drawGame(canvas, game, now);
 }
 
 }  // namespace
@@ -169,22 +189,19 @@ void setup() {
 
     setBacklight(true);
 
-    pinMode(kBtnSelectPin, INPUT_PULLUP);
-    pinMode(kBtnSwitchPin, INPUT);
+    // GPIO 35 has no internal pull-up on this revision; the board provides one.
+    pinMode(kBtnTopPin, INPUT);
+    pinMode(kBtnBottomPin, INPUT_PULLUP);
 
     tft.init();
     tft.setRotation(1);
+    // The canvas stores RGB565 in natural byte order; the panel wants it
+    // swapped. Without this the palette comes out with the bytes reversed —
+    // orange turns purple, green turns blue.
+    tft.setSwapBytes(true);
+    tft.fillScreen(TFT_BLACK);
 
-    frame.setColorDepth(16);
-    frame.createSprite(kScreenW, kScreenH);
-    // pushImage(uint16_t*) memcpys into the sprite buffer, but TFT_eSprite
-    // stores 16-bit pixels pre-byte-swapped (fillRect/drawPixel apply the
-    // swap themselves). Without setSwapBytes the splash palette comes out
-    // with its high/low bytes reversed — orange becomes purple, green
-    // becomes blue, etc.
-    frame.setSwapBytes(true);
-    frame.fillSprite(TFT_BLACK);
-    frame.pushSprite(0, 0);
+    game.reset(millis());
 
     splashStartedAt = millis();
     lastFrameAt = splashStartedAt;
@@ -198,15 +215,23 @@ void loop() {
     }
     lastFrameAt = now;
 
-    readButton(btnSelect);
-    readButton(btnSwitch);
+    readButton(btnTop);
+    readButton(btnBottom);
 
-    switch (scene) {
-        case Scene::Splash:
+    switch (screen) {
+        case Screen::Splash:
             updateSplash(now);
             break;
-        case Scene::Menu:
-            updateMenu();
+        case Screen::Menu:
+            updateMenu(now);
+            break;
+        case Screen::About:
+            updateAbout();
+            break;
+        case Screen::Game:
+            updateGame(now);
             break;
     }
+
+    tft.pushImage(0, 0, kScreenW, kScreenH, frameBuffer);
 }
